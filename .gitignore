@@ -22,4 +22,4 @@ venv.bak/
 Thumbs.db
 
 # Project specific
-task_generator.json
+expenses.json
