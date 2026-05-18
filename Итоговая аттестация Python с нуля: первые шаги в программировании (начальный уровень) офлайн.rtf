@@ -1,0 +1,252 @@
+{\rtf1\ansi\ansicpg1251\cocoartf2869
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww27100\viewh15800\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 import json\
+import os\
+import random\
+import tkinter as tk\
+from tkinter import ttk, messagebox\
+from datetime import datetime\
+\
+class TaskGenerator:\
+    def __init__(self, root):\
+        self.root = root\
+        self.root.title("Random Task Generator")\
+        self.root.geometry("900x650")\
+        \
+        self.tasks = []\
+        self.generation_history = []\
+        self.load_data()\
+        \
+        self.create_task_input_frame()\
+        self.create_tasks_list_frame()\
+        self.create_generator_frame()\
+        self.create_history_frame()\
+        self.create_button_frame()\
+        \
+        self.update_tasks_list()\
+        self.update_history_display()\
+    \
+    def create_task_input_frame(self):\
+        input_frame = ttk.LabelFrame(self.root, text="Add New Task", padding=10)\
+        input_frame.pack(fill="x", padx=10, pady=5)\
+        \
+        ttk.Label(input_frame, text="Task Name:").grid(row=0, column=0, sticky="w", padx=5, pady=5)\
+        self.task_name_entry = ttk.Entry(input_frame, width=30)\
+        self.task_name_entry.grid(row=0, column=1, padx=5, pady=5, sticky="ew")\
+        \
+        ttk.Label(input_frame, text="Task Type:").grid(row=0, column=2, sticky="w", padx=5, pady=5)\
+        self.task_type_combo = ttk.Combobox(input_frame, values=["Work", "Study", "Home", "Health", "Other"], width=15)\
+        self.task_type_combo.grid(row=0, column=3, padx=5, pady=5)\
+        self.task_type_combo.set("Other")\
+        \
+        ttk.Label(input_frame, text="Description (optional):").grid(row=1, column=0, sticky="w", padx=5, pady=5)\
+        self.task_desc_entry = ttk.Entry(input_frame, width=60)\
+        self.task_desc_entry.grid(row=1, column=1, columnspan=3, padx=5, pady=5, sticky="ew")\
+        \
+        ttk.Button(input_frame, text="Add Task", command=self.add_task).grid(row=2, column=0, columnspan=4, pady=10)\
+        \
+        input_frame.columnconfigure(1, weight=1)\
+    \
+    def create_tasks_list_frame(self):\
+        tasks_frame = ttk.LabelFrame(self.root, text="Available Tasks", padding=10)\
+        tasks_frame.pack(fill="both", expand=True, padx=10, pady=5)\
+        \
+        columns = ("name", "type", "description")\
+        self.tasks_tree = ttk.Treeview(tasks_frame, columns=columns, show="headings", height=8)\
+        \
+        self.tasks_tree.heading("name", text="Task Name")\
+        self.tasks_tree.heading("type", text="Type")\
+        self.tasks_tree.heading("description", text="Description")\
+        \
+        self.tasks_tree.column("name", width=200)\
+        self.tasks_tree.column("type", width=100)\
+        self.tasks_tree.column("description", width=350)\
+        \
+        scrollbar = ttk.Scrollbar(tasks_frame, orient="vertical", command=self.tasks_tree.yview)\
+        self.tasks_tree.configure(yscrollcommand=scrollbar.set)\
+        \
+        self.tasks_tree.pack(side="left", fill="both", expand=True)\
+        scrollbar.pack(side="right", fill="y")\
+    \
+    def create_generator_frame(self):\
+        gen_frame = ttk.LabelFrame(self.root, text="Random Task Generator", padding=10)\
+        gen_frame.pack(fill="x", padx=10, pady=5)\
+        \
+        ttk.Label(gen_frame, text="Filter by Type (optional):").grid(row=0, column=0, sticky="w", padx=5, pady=5)\
+        self.filter_type_combo = ttk.Combobox(gen_frame, values=["All", "Work", "Study", "Home", "Health", "Other"], width=15)\
+        self.filter_type_combo.grid(row=0, column=1, padx=5, pady=5)\
+        self.filter_type_combo.set("All")\
+        \
+        ttk.Button(gen_frame, text="Generate Random Task", command=self.generate_random_task).grid(row=0, column=2, padx=20, pady=5)\
+        \
+        self.generated_task_label = ttk.Label(gen_frame, text="", font=("Arial", 12, "bold"), foreground="green")\
+        self.generated_task_label.grid(row=1, column=0, columnspan=3, pady=10)\
+    \
+    def create_history_frame(self):\
+        history_frame = ttk.LabelFrame(self.root, text="Generation History", padding=10)\
+        history_frame.pack(fill="both", expand=True, padx=10, pady=5)\
+        \
+        columns = ("datetime", "task_name", "task_type")\
+        self.history_tree = ttk.Treeview(history_frame, columns=columns, show="headings", height=6)\
+        \
+        self.history_tree.heading("datetime", text="Date & Time")\
+        self.history_tree.heading("task_name", text="Task Name")\
+        self.history_tree.heading("task_type", text="Type")\
+        \
+        self.history_tree.column("datetime", width=150)\
+        self.history_tree.column("task_name", width=250)\
+        self.history_tree.column("task_type", width=100)\
+        \
+        scrollbar = ttk.Scrollbar(history_frame, orient="vertical", command=self.history_tree.yview)\
+        self.history_tree.configure(yscrollcommand=scrollbar.set)\
+        \
+        self.history_tree.pack(side="left", fill="both", expand=True)\
+        scrollbar.pack(side="right", fill="y")\
+    \
+    def create_button_frame(self):\
+        button_frame = ttk.Frame(self.root)\
+        button_frame.pack(fill="x", padx=10, pady=10)\
+        \
+        ttk.Button(button_frame, text="Delete Selected Task", command=self.delete_task).pack(side="left", padx=5)\
+        ttk.Button(button_frame, text="Save to JSON", command=self.save_data).pack(side="left", padx=5)\
+        ttk.Button(button_frame, text="Load from JSON", command=self.load_data).pack(side="left", padx=5)\
+        ttk.Button(button_frame, text="Clear History", command=self.clear_history).pack(side="left", padx=5)\
+    \
+    def add_task(self):\
+        name = self.task_name_entry.get().strip()\
+        task_type = self.task_type_combo.get().strip()\
+        description = self.task_desc_entry.get().strip()\
+        \
+        if not name:\
+            messagebox.showerror("Error", "Task name cannot be empty")\
+            return\
+        \
+        if not task_type:\
+            messagebox.showerror("Error", "Please select a task type")\
+            return\
+        \
+        task = \{\
+            "name": name,\
+            "type": task_type,\
+            "description": description\
+        \}\
+        \
+        self.tasks.append(task)\
+        self.update_tasks_list()\
+        \
+        self.task_name_entry.delete(0, tk.END)\
+        self.task_type_combo.set("Other")\
+        self.task_desc_entry.delete(0, tk.END)\
+        \
+        messagebox.showinfo("Success", f"Task '\{name\}' added successfully")\
+    \
+    def delete_task(self):\
+        selected = self.tasks_tree.selection()\
+        if not selected:\
+            messagebox.showwarning("Warning", "Please select a task to delete")\
+            return\
+        \
+        if messagebox.askyesno("Confirm", "Delete selected task?"):\
+            for item in selected:\
+                values = self.tasks_tree.item(item, "values")\
+                for i, task in enumerate(self.tasks):\
+                    if task["name"] == values[0] and task["type"] == values[1]:\
+                        self.tasks.pop(i)\
+                        break\
+            self.update_tasks_list()\
+            messagebox.showinfo("Success", "Task deleted")\
+    \
+    def update_tasks_list(self):\
+        for item in self.tasks_tree.get_children():\
+            self.tasks_tree.delete(item)\
+        \
+        for task in self.tasks:\
+            self.tasks_tree.insert("", "end", values=(\
+                task["name"],\
+                task["type"],\
+                task["description"]\
+            ))\
+    \
+    def generate_random_task(self):\
+        if not self.tasks:\
+            messagebox.showwarning("Warning", "No tasks available. Please add some tasks first.")\
+            return\
+        \
+        filter_type = self.filter_type_combo.get()\
+        \
+        if filter_type == "All":\
+            available_tasks = self.tasks.copy()\
+        else:\
+            available_tasks = [t for t in self.tasks if t["type"] == filter_type]\
+        \
+        if not available_tasks:\
+            messagebox.showwarning("Warning", f"No tasks found with type '\{filter_type\}'")\
+            return\
+        \
+        selected_task = random.choice(available_tasks)\
+        \
+        self.generated_task_label.config(text=f"Selected Task: \{selected_task['name']\} (\{selected_task['type']\})")\
+        \
+        history_entry = \{\
+            "datetime": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),\
+            "task_name": selected_task["name"],\
+            "task_type": selected_task["type"]\
+        \}\
+        self.generation_history.append(history_entry)\
+        self.update_history_display()\
+        \
+        messagebox.showinfo("Generated Task", f"Task: \{selected_task['name']\}\\nType: \{selected_task['type']\}\\nDescription: \{selected_task['description']\}")\
+    \
+    def update_history_display(self):\
+        for item in self.history_tree.get_children():\
+            self.history_tree.delete(item)\
+        \
+        for entry in reversed(self.generation_history):\
+            self.history_tree.insert("", "end", values=(\
+                entry["datetime"],\
+                entry["task_name"],\
+                entry["task_type"]\
+            ))\
+    \
+    def clear_history(self):\
+        if messagebox.askyesno("Confirm", "Clear entire generation history?"):\
+            self.generation_history = []\
+            self.update_history_display()\
+            messagebox.showinfo("Success", "History cleared")\
+    \
+    def save_data(self):\
+        try:\
+            data = \{\
+                "tasks": self.tasks,\
+                "history": self.generation_history\
+            \}\
+            with open("task_generator.json", "w", encoding="utf-8") as f:\
+                json.dump(data, f, ensure_ascii=False, indent=4)\
+            messagebox.showinfo("Success", "Data saved to task_generator.json")\
+        except Exception as e:\
+            messagebox.showerror("Error", f"Failed to save: \{str(e)\}")\
+    \
+    def load_data(self):\
+        try:\
+            if os.path.exists("task_generator.json"):\
+                with open("task_generator.json", "r", encoding="utf-8") as f:\
+                    data = json.load(f)\
+                    self.tasks = data.get("tasks", [])\
+                    self.generation_history = data.get("history", [])\
+                self.update_tasks_list()\
+                self.update_history_display()\
+                messagebox.showinfo("Success", "Data loaded from task_generator.json")\
+            else:\
+                messagebox.showwarning("Warning", "File task_generator.json not found")\
+        except Exception as e:\
+            messagebox.showerror("Error", f"Failed to load: \{str(e)\}")\
+\
+if __name__ == "__main__":\
+    root = tk.Tk()\
+    app = TaskGenerator(root)\
+    root.mainloop()}
